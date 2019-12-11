@@ -165,6 +165,10 @@ def reg_user(request):
 	if request.POST:
 		form = RegistrationForm(request.POST)
 		if form.is_valid():
+			if User.objects.filter(username=form.cleaned_data['username']).exists():
+				fail = True
+				variables = RequestContext(request, {'form':form, 'fail':fail})
+				return render_to_response('register.html', variables)
 			user = User.objects.create_user(
 				username = form.cleaned_data['username'],
 				password = form.cleaned_data['password1'],

@@ -10,7 +10,10 @@
 					{{ form.password1 }}</br>
 					{{ form.password2 }}</br>
 					{{ form.errors }}</br>
-					<input type="submit" value="register" class="btn btn-default btn-lg"/>
+					<input type="submit" value="register" class="btn btn-default btn-lg"/></br></br>
+					{% if fail %}
+					<p>User Already Exists</p>
+					{% endif %}
 				</form>
 			</div>
         </div>
