@@ -57,10 +57,11 @@
                     <li>
                         <a class="page-scroll" href="/">Home</a>
                     </li>
+                    {% if user.is_authenticated %}
                     <li>
                         <a class="page-scroll" href="/search">Search</a>
                     </li>
-                    {% if user.is_authenticated %}
+                    
                     <li>
                         <a class="page-scroll" href="/logout">Logout</a>
                     </li>

@@ -2,6 +2,8 @@
 {% load staticfiles %}
 {% block head %}
 <link href="{% static 'css/searchbar.css' %}" rel="stylesheet">
+
+<script type = "text/javascript" src="{% static 'js/searchFunction.js' %}"></script>
 {% endblock %}
 {% block content %}
 <section class="container content-section text-center">
@@ -15,16 +17,23 @@
 				<br>
 				<h1>You Searched For '{{ query }}'</h1>
 				{% for i in results %}
-					<p><a target="_blank" href="https://www.imdb.com/title/{{ i.id }}">{{ i.originalTitle }} ({{ i.year }})</a> </p>
+					<script type="text/javascript">
+						var title = "{{ i.originalTitle }}";
+						// console.log("Inline Title is : ", title);
+					</script>
+					<p><a onclick="showRecommendation()" target="_blank" >{{ i.originalTitle }} ({{ i.year }})</a> </p>
 				{% endfor %}
-				<h1>Based on '{{mainResult}}' You might also like:</h1>
-				{% for i in recommended %}
-					<p><a target="_blank" href="https://www.imdb.com/title/{{ i.id }}">{{ i.originalTitle }} ({{ i.year }})</a></p>
-				{% endfor %}
-				{% endif %}
 
-				{% if empty %}
-					<br><p>{{ message }}</p>
+				<div class='hidden' id="recommendations">
+					<h1>Based on '{{mainResult}}' You might also like:</h1>
+					{% for i in recommended %}
+						<p><a target="_blank" href="https://www.imdb.com/title/{{ i.id }}">{{ i.originalTitle }} ({{ i.year }})</a></p>
+					{% endfor %}
+					{% endif %}
+
+					{% if empty %}
+						<br><p>{{ message }}</p>
+				</div>
 				{% endif %}
             </div>
         </div>

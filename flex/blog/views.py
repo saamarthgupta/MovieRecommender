@@ -62,7 +62,7 @@ def search(request):
 	
 	variables = []
 	
-	file_ = open(os.path.join(settings.BASE_DIR, 'finalCleanData.csv'))
+	file_ = open(os.path.join(settings.BASE_DIR, 'cleanData.csv'))
 	movies=pd.read_csv(file_,delimiter=',')
 	if request.GET:
 		query = request.GET['query']
