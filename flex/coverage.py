@@ -1,5 +1,5 @@
 from imdb import IMDb
-from modelRecommendations import modelRecommendations
+from modelRecommendations1 import modelRecommendations
 from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 from sklearn.feature_extraction.text import TfidfVectorizer
 import sklearn.metrics as metrics
@@ -61,7 +61,6 @@ def getCountrySimilarity(movieCountrySet, defaultCountrySet):
 		return 1
 
 def getYearSimilarity(movie,movieInfo):
-	
 	yearDiff = abs(movie[4]-movieInfo[4])
 	if(yearDiff>=40):
 		return 0.2
@@ -69,18 +68,14 @@ def getYearSimilarity(movie,movieInfo):
 		return 1-(yearDiff/50)
 
 
-def getGenreSimilarity(movie1, movie2):
+def getGenreSimilarity(id1, id2):
 
-	with open('model/tfidf_matrix', 'rb') as tfidf_matrixFile:
-		tfidf_matrix = pickle.load(tfidf_matrixFile) 
-	with open('model/tfidf_indices', 'rb') as tfidf_indices:
-		indices = pickle.load(tfidf_indices)
-	return metrics.pairwise.cosine_similarity(tfidf_matrix[indices['_'.join(title(movie1))]],tfidf_matrix[indices['_'.join(title(movie2))]])
+	return metrics.pairwise.cosine_similarity(tfidf_matrix[indices[str(id1)]],tfidf_matrix[indices[str(id2)]])
 
-def getMaxGenSim(modelRecommendationResults, movieTitle):
+def getMaxGenSim(modelRecommendationResults, movieId):
 	maxRes=0.01
 	for movie in modelRecommendationResults:
-		temp = getGenreSimilarity(movie[0],movieTitle)
+		temp = getGenreSimilarity(movie[1],movieId)
 		if (temp > maxRes):
 			maxRes = temp
 	return maxRes
@@ -98,61 +93,78 @@ else:
 mycursor = conn.cursor()
 
 titles = {}
-defaultCountrySet = ['United States','India','Australia','United Kingdom']
-# Load Model
-fname ='model/model'
-model = Doc2Vec.load(fname)
+ids={}
 
-with open('db/finalMasterData.json') as json_file: 
+# Load Model
+# fname ='model/model'
+fname = 'model/model2'
+model = Doc2Vec.load(fname)
+masterFile = 'db/finalMasterDatawithProdInfo.json'
+
+with open('model/tfidf_matrix', 'rb') as tfidf_matrixFile:
+		tfidf_matrix = pickle.load(tfidf_matrixFile) 
+with open('model/tfidf_indices', 'rb') as tfidf_indices:
+		indices = pickle.load(tfidf_indices)
+
+with open(masterFile) as json_file: 
     data=json.load(json_file)
     for line in data:
-    	titles[line['title']]='_'.join(title(line['title']))
-    documents=pd.read_json('db/finalMasterData.json')
-    documents.set_index('title',inplace=True)
+    	titles[line['title']]= '_'.join(title(line['title'])+[str(line['year'])])
+    	ids[str(int(line['id']))]= '_'.join(title(line['title'])+[str(line['year'])])  
+    documents=pd.read_json(masterFile)
+    documents=documents.astype({'id': int})
+    documents=documents.astype({'id': str})
+    documents.set_index('id',inplace=True)
 
-query = "SELECT * FROM data_country_info"
-mycursor.execute(query)
-movies = mycursor.fetchall()
-coverageSet = set()
-
-def getMovieRecommendations(movieTest):
-	
-	modelRecommendationResults = list(modelRecommendations.recommend(movieTest[1], titles, model, documents))
+def getMovieRecommendations(movieInfo):
+	movieTitle=movieInfo[1]
+	mainMovieId=str(int(movieInfo[6]))
+	modelRecommendationResults = list(modelRecommendations.recommend(movieTitle, titles, model, documents,ids))
 	modelRecommendationResults = np.array(modelRecommendationResults)
 	# print(modelRecommendationResults)
+
+	defaultCountrySet = ['United States','India','Australia','United Kingdom']
+
 	# Normalise Similarity scores By Dividing with max of Similarity Score
 	normaliseSimScores(modelRecommendationResults)
-	maxGenSim = getMaxGenSim(modelRecommendationResults, movieTest[1])
+	maxGenSim = getMaxGenSim(modelRecommendationResults, mainMovieId)
 	for movie in modelRecommendationResults:
 		movieId = movie[1]
 		# print(movieId)
-
-		found = True
-		movieData = []
+		found=True
+		movieData=[]
 		try:
 			query = "SELECT * from `data_country_info` where id=" + movieId
 			mycursor.execute(query)
 			movieData = mycursor.fetchone()
 		except:
 			# print("None Found")
-			found = False
-
+			found=False
+		
 		if movieData is None or found is False:
-			continue
+			continue		
 
 		countrySim = getCountrySimilarity(movieData[5].split(','), defaultCountrySet)
-		yearSim = getYearSimilarity(movieTest, movieData)
+		yearSim = getYearSimilarity(movieData,movieInfo)
 		# print("MG - ", movieData[0],"\t","MD - ", movieInfo[0], getGenreSimilarity(movieData[1],movieInfo[1]))
 		# Normalise Genre Similarity Score
-		genreSim = getGenreSimilarity(movieData[1], movieTest[1]) / maxGenSim
-		movie[2] = 0.55 * float(movie[2]) + 0.45 * countrySim + 0.15 * yearSim + 0.4 * float(genreSim[0])
-	# modelRecommendationResults.sort(key = lambda x:x[2]) # 0 - Title, 1 -Index, 2 - Sim Score
-	modelRecommendationResults = modelRecommendationResults[modelRecommendationResults[:, 2].argsort()]
-	# Reverse Sorted Array
-	modelRecommendationResults = modelRecommendationResults[::-1]
-	recommendations = modelRecommendationResults[0:5]
-	return recommendations
+		genreSim = getGenreSimilarity(str(int(movieData[6])),mainMovieId)/maxGenSim
 
+		movie[2] = 0.55 * float(movie[2]) + 0.45 * countrySim + 0.15 * yearSim + 0.4 * float(genreSim[0])
+
+	# modelRecommendationResults.sort(key = lambda x:x[2]) # 0 - Title, 1 -Index, 2 - Sim Score
+	modelRecommendationResults = modelRecommendationResults[modelRecommendationResults[:,2].argsort()]
+	#Reverse Sorted Array
+	modelRecommendationResults = modelRecommendationResults[::-1] 
+
+	return modelRecommendationResults[0:5]
+
+
+query = "SELECT * FROM data_country_info"
+mycursor.execute(query)
+movies = mycursor.fetchall()
+coverageSet = set()
+movieLen = len(movies)
 count=1
 for movie in movies:
 	print(count)
@@ -160,8 +172,8 @@ for movie in movies:
 	# print(recommendations)
 	for rcd in recommendations:
 		coverageSet.add(rcd[1])
-		# print(rcd[1])
-	if(count%1000 == 0):
+		print(rcd[1])
+	if(count%1000 == 0 or count==movieLen-1):
 		print("Pass Complete")
 		pickleOut = open("rcd.txt","wb")
 		pickle.dump(coverageSet, pickleOut)
@@ -180,7 +192,7 @@ pickle.dump(coverageSet, pickleOut)
 # 	movieSet.add(str(movie[6]))
 
 # z = coverageSet.intersection(movieSet)
-print("Coverage = ", len(coverageSet)*100/len(movieData))
+print("Coverage = ", len(coverageSet)*100/len(movies))
 
 
 
