@@ -39,64 +39,37 @@ def preprocess(text):
     # 4. Remove words
     
     stemmer = WordNetLemmatizer()
-    # nopunc = [char for char in text if char not in string.punctuation]
-    # nopunc = ''.join([i for i in nopunc if not i.isdigit()])
-    # nopunc =  [word.lower() for word in nopunc.split() if word not in stopwords.words('english')]
-   
-    # return [stemmer.lemmatize(word) for word in text]
+    nopunc = [char for char in text if char not in string.punctuation]
+    nopunc = ''.join([i for i in nopunc if not i.isdigit()])
+    nopunc =  [word.lower() for word in nopunc.split() if word not in stopwords.words('english')]
    
     return [stemmer.lemmatize(word) for word in text]
-    
+
 def title(text):
 
     # Remove all punctuation and make all lowercase 
     return RE_PUNCT.sub(" ", text).lower().split()
 
-# logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)  
-
-
-titles={}
 masterFile = 'db/finalMasterDatawithProdInfo.json'
-with open(masterFile) as json_file: 
-	data=json.load(json_file)
-	for line in data:
-		titles[line['title']]='_'.join(title(line['title']))
-	documents=pd.read_json(masterFile)
-	documents.set_index('title',inplace=True)    
+documents=pd.read_json(masterFile)
+documents.set_index('title',inplace=True)
+documents=documents.astype({'id': int})
+documents=documents.astype({'id': str})
 
-# def recommend(p):
-    
-#     doctag = title(p)
-#     ids=[None]*20
-#     name=[None]*20
-#     score=[None]*20
-#     final=[]
-#     ans=model.docvecs.most_similar('_'.join(doctag),topn=20)
-#     for i in range(20):
-#         name[i]= list(titles.keys())[list(titles.values()).index(ans[i][0])]
-#         ids[i]=documents.loc[name[i]]['id']
-#         score[i]=ans[i][1]
-#     final=list(zip(name,list(zip(ids,score))))
-#     return final
+documents.set_index('id',inplace=True)
 
 tf = TfidfVectorizer(analyzer='word',ngram_range=(1, 1),min_df=0, stop_words='english')
-tfidf_matrix = tf.fit_transform([" ".join(preprocess(documents.iloc[i]['genres'])) 
-    for i in range(documents.shape[0])])
-
-print(tfidf_matrix)
-print(tf.get_feature_names())
-
-with open('model/tfidf_matrix', 'wb') as tfidf_matrixFile:
-  pickle.dump(tfidf_matrix, tfidf_matrixFile)
+tfidf_matrix = tf.fit_transform([" ".join(preprocess(documents.iloc[i]['genres'])) for i in range(documents.shape[0])])
 
 indices={}
 for i in range(documents.shape[0]):
-    indices['_'.join(title(documents.index[i]))]=i   
+    indices[str(documents.index[i])]=i  
+
+print(tfidf_matrix)
+print(tf.get_feature_names())
+print(indices)
+with open('model/tfidf_matrix', 'wb') as tfidf_matrixFile:
+  pickle.dump(tfidf_matrix, tfidf_matrixFile)
+
 with open('model/tfidf_indices', 'wb') as tfidf_indexFile:
   pickle.dump(indices, tfidf_indexFile)
-
-# def genre_similarity(movie1,movie2):
-    # return metrics.pairwise.cosine_similarity(tfidf_matrix[indices['_'.join(title(movie1))]],tfidf_matrix[indices['_'.join(title(movie2))]])
-
-# print(genre_similarity('Gully boy','Argo'))
-# recommendations=recommend(movie)
