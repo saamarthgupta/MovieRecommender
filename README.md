@@ -1,4 +1,4 @@
-# Basic-Movie-Recommender-Django
+# Movie-Recommender-Django
 
 A basic movie recommendation web-app is created using Django framework. The app uses ImDB Dataset for movie and user information. Recommendations are given on Item-Item based Similarity measure calculated using the user ratings for a movie and its other details.
 
